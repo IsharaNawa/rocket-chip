@@ -528,7 +528,7 @@ class CSRFile(
 
   val delegable_counters = ((BigInt(1) << (nPerfCounters + CSR.firstHPM)) - 1).U
   val (reg_mcounteren, read_mcounteren) = {
-    // Initialize mcounteren to enable all counters for delegation to S-mode and U-mode
+    // Initialize mcounteren to enable all counters for delegation to S-mode and U-mode by default
     val reg = RegInit(((BigInt(1) << (nPerfCounters + CSR.firstHPM)) - 1).U(32.W))
     (reg, Mux(usingUser.B, reg & delegable_counters, 0.U))
   }
