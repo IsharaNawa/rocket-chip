@@ -528,11 +528,13 @@ class CSRFile(
 
   val delegable_counters = ((BigInt(1) << (nPerfCounters + CSR.firstHPM)) - 1).U
   val (reg_mcounteren, read_mcounteren) = {
-    val reg = Reg(UInt(32.W))
+    // Initialize mcounteren to enable all counters for delegation to S-mode and U-mode
+    val reg = RegInit(((BigInt(1) << (nPerfCounters + CSR.firstHPM)) - 1).U(32.W))
     (reg, Mux(usingUser.B, reg & delegable_counters, 0.U))
   }
   val (reg_scounteren, read_scounteren) = {
-    val reg = Reg(UInt(32.W))
+    // Initialize scounteren to 0x7 to enable user-mode access to cycle, time, and instret counters
+    val reg = RegInit(0x7.U(32.W))
     (reg, Mux(usingSupervisor.B, reg & delegable_counters, 0.U))
   }
 
@@ -1303,7 +1305,9 @@ class CSRFile(
       when (decoded_addr(i + CSR.firstHPE)) { e := perfEventSets.maskEventSelector(wdata) }
     }
     if (coreParams.haveBasicCounters) {
-      when (decoded_addr(CSRs.mcountinhibit)) { reg_mcountinhibit := wdata & ~2.U(xLen.W) }  // mcountinhibit bit [1] is tied zero
+      // Force bits 0 and 2 to stay clear (never inhibit cycle and instret counters)
+      // Also keep bit 1 tied to zero per spec
+      when (decoded_addr(CSRs.mcountinhibit)) { reg_mcountinhibit := wdata & ~0x7.U(xLen.W) }
       writeCounter(CSRs.mcycle, reg_cycle, wdata)
       writeCounter(CSRs.minstret, reg_instret, wdata)
     }
@@ -1368,7 +1372,8 @@ class CSRFile(
       when (decoded_addr(CSRs.stval))    { reg_stval := wdata }
       when (decoded_addr(CSRs.mideleg))  { reg_mideleg := wdata }
       when (decoded_addr(CSRs.medeleg))  { reg_medeleg := wdata }
-      when (decoded_addr(CSRs.scounteren)) { reg_scounteren := wdata }
+      // Force bits 0,1,2 to always be set (enable cycle, time, instret for user mode)
+      when (decoded_addr(CSRs.scounteren)) { reg_scounteren := wdata | 0x7.U }
       when (decoded_addr(CSRs.senvcfg))    { reg_senvcfg.write(wdata) }
     }
 
